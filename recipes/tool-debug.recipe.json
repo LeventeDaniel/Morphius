@@ -1,0 +1,39 @@
+{
+  "id": "tool-debug",
+  "name": "Tool Debug",
+  "description": "Developer workspace for debugging plugins, tools, and system internals",
+  "requiredPlugins": ["mock-llm-connector", "mock-web-search", "mock-memory", "mock-audit-logger", "mock-output-validator"],
+  "layout": "grid",
+  "defaultPanels": [
+    {
+      "id": "tool-registry",
+      "pluginId": "mock-llm-connector",
+      "blockId": "chat-view",
+      "position": { "col": 1, "row": 1, "colSpan": 4, "rowSpan": 5 }
+    },
+    {
+      "id": "search-debug",
+      "pluginId": "mock-web-search",
+      "blockId": "search-panel",
+      "position": { "col": 5, "row": 1, "colSpan": 4, "rowSpan": 5 }
+    },
+    {
+      "id": "memory-debug",
+      "pluginId": "mock-memory",
+      "blockId": "context-panel",
+      "position": { "col": 9, "row": 1, "colSpan": 4, "rowSpan": 5 }
+    },
+    {
+      "id": "run-console",
+      "pluginId": "mock-output-validator",
+      "blockId": "validator-panel",
+      "position": { "col": 1, "row": 6, "colSpan": 6, "rowSpan": 5 }
+    },
+    {
+      "id": "debug-audit",
+      "pluginId": "mock-audit-logger",
+      "blockId": "audit-stream",
+      "position": { "col": 7, "row": 6, "colSpan": 6, "rowSpan": 5 }
+    }
+  ]
+}

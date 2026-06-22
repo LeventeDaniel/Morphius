@@ -1,0 +1,27 @@
+{
+  "id": "benchmark",
+  "name": "Benchmark Workspace",
+  "description": "Model benchmarking and evaluation workspace",
+  "requiredPlugins": ["mock-llm-connector", "mock-output-validator", "mock-audit-logger"],
+  "layout": "grid",
+  "defaultPanels": [
+    {
+      "id": "run-console",
+      "pluginId": "mock-llm-connector",
+      "blockId": "chat-view",
+      "position": { "col": 1, "row": 1, "colSpan": 5, "rowSpan": 10 }
+    },
+    {
+      "id": "results-panel",
+      "pluginId": "mock-output-validator",
+      "blockId": "validator-panel",
+      "position": { "col": 6, "row": 1, "colSpan": 4, "rowSpan": 10 }
+    },
+    {
+      "id": "benchmark-audit",
+      "pluginId": "mock-audit-logger",
+      "blockId": "audit-stream",
+      "position": { "col": 10, "row": 1, "colSpan": 3, "rowSpan": 10 }
+    }
+  ]
+}

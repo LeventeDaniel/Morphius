@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Backgrounds — darkest to lightest */
+  --bg-webtop: #050505;
+  --bg-primary: #0a0a0a;
+  --bg-deep: #0d0d0d;
+  --bg-secondary: #111111;
+  --bg-panel: #161616;
+  --bg-elevated: #1a1a1a;
+  --bg-titlebar: #1e1e1e;
+  --bg-panel-hover: #1e1e1e;
+
+  /* Borders */
+  --border-subtle: #1a1a1a;
+  --border: #2a2a2a;
+  --border-accent: #3a3a3a;
+
+  /* Text — lightest to dimmest */
+  --text-primary: #e8e8e8;
+  --text-secondary: #888888;
+  --text-dim: #666666;
+  --text-muted: #444444;
+  --text-ghost: #333333;
+
+  /* Accent — single green, use sparingly */
+  --accent: #4ade80;
+  --accent-dim: #2a6a40;
+
+  /* Status */
+  --status-ok: #4ade80;
+  --status-warn: #555555;
+  --status-error: #f87171;
+
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-accent);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Selection */
+::selection {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--accent);
+}
+
+/* Utility classes */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.text-ok {
+  color: var(--status-ok);
+}
+
+.text-warn {
+  color: var(--status-warn);
+}
+
+.text-error {
+  color: var(--status-error);
+}
+
+/* Panel animations */
+@keyframes panel-appear {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.panel-appear {
+  animation: panel-appear 0.18s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fade-in 0.15s ease-out forwards;
+}
+
+/* Blinking cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Status dot pulse */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+.status-pulse {
+  animation: pulse-dot 2s ease-in-out infinite;
+}

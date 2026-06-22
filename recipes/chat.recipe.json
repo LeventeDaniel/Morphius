@@ -1,0 +1,27 @@
+{
+  "id": "chat",
+  "name": "Chat Workspace",
+  "description": "Conversational AI workspace with tool use and memory context",
+  "requiredPlugins": ["mock-llm-connector", "mock-memory", "mock-audit-logger"],
+  "layout": "split",
+  "defaultPanels": [
+    {
+      "id": "chat-main",
+      "pluginId": "mock-llm-connector",
+      "blockId": "chat-view",
+      "position": { "col": 1, "row": 1, "colSpan": 8, "rowSpan": 10 }
+    },
+    {
+      "id": "context-drawer",
+      "pluginId": "mock-memory",
+      "blockId": "context-panel",
+      "position": { "col": 9, "row": 1, "colSpan": 4, "rowSpan": 5 }
+    },
+    {
+      "id": "memory-snapshot",
+      "pluginId": "mock-memory",
+      "blockId": "memory-mini",
+      "position": { "col": 9, "row": 6, "colSpan": 4, "rowSpan": 5 }
+    }
+  ]
+}

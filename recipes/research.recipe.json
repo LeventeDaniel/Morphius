@@ -1,0 +1,33 @@
+{
+  "id": "research",
+  "name": "Research Workspace",
+  "description": "Web research workspace with search, evidence gathering, and audit trail",
+  "requiredPlugins": ["mock-web-search", "mock-memory", "mock-audit-logger", "mock-output-validator"],
+  "layout": "grid",
+  "defaultPanels": [
+    {
+      "id": "search-main",
+      "pluginId": "mock-web-search",
+      "blockId": "search-panel",
+      "position": { "col": 1, "row": 1, "colSpan": 6, "rowSpan": 6 }
+    },
+    {
+      "id": "evidence-drawer",
+      "pluginId": "mock-web-search",
+      "blockId": "results-list",
+      "position": { "col": 7, "row": 1, "colSpan": 6, "rowSpan": 6 }
+    },
+    {
+      "id": "research-memory",
+      "pluginId": "mock-memory",
+      "blockId": "context-panel",
+      "position": { "col": 1, "row": 7, "colSpan": 6, "rowSpan": 4 }
+    },
+    {
+      "id": "research-audit",
+      "pluginId": "mock-audit-logger",
+      "blockId": "audit-stream",
+      "position": { "col": 7, "row": 7, "colSpan": 6, "rowSpan": 4 }
+    }
+  ]
+}
