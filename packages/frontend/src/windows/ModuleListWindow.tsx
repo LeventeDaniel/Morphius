@@ -10,7 +10,7 @@ interface ModuleListWindowProps {
 }
 
 export function ModuleListWindow({ window: win }: ModuleListWindowProps) {
-  const { closeWindow, minimizeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
+  const { closeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
   const [plugins, setPlugins] = useState<PluginManifestDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +41,6 @@ export function ModuleListWindow({ window: win }: ModuleListWindowProps) {
     <FloatingWindow
       window={win}
       onClose={() => closeWindow(win.id)}
-      onMinimize={() => minimizeWindow(win.id)}
       onCollapse={() => collapseWindow(win.id)}
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}

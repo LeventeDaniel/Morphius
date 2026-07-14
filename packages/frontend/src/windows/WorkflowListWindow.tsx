@@ -10,7 +10,7 @@ interface WorkflowListWindowProps {
 }
 
 export function WorkflowListWindow({ window: win }: WorkflowListWindowProps) {
-  const { closeWindow, minimizeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
+  const { closeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
   const [recipes, setRecipes] = useState<RecipeDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +40,6 @@ export function WorkflowListWindow({ window: win }: WorkflowListWindowProps) {
     <FloatingWindow
       window={win}
       onClose={() => closeWindow(win.id)}
-      onMinimize={() => minimizeWindow(win.id)}
       onCollapse={() => collapseWindow(win.id)}
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}

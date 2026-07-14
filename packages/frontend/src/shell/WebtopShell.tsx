@@ -2,13 +2,16 @@ import { useEffect, useState, useCallback } from 'react';
 import { CommandLauncher } from './CommandLauncher.js';
 import { WebtopCanvas } from '../workspace/WebtopCanvas.js';
 import { usePluginStore } from '../store/plugins.js';
+import { useWindowStore } from '../store/windows.js';
+import { loadSavedLayout } from '../store/windows.js';
 import { api } from '../api/client.js';
 
 export function WebtopShell() {
   const { setPlugins, setLoading } = usePluginStore();
+  const { openWindow } = useWindowStore();
   const [launcherOpen, setLauncherOpen] = useState(false);
 
-  // Bootstrap: load plugin registry for mounting primitives
+  // Bootstrap: load plugin registry, then call any registered boot restorers
   useEffect(() => {
     async function boot() {
       setLoading(true);
@@ -18,9 +21,11 @@ export function WebtopShell() {
       } finally {
         setLoading(false);
       }
+      const saved = await loadSavedLayout();
+      for (const w of saved) openWindow(w);
     }
     boot();
-  }, [setPlugins, setLoading]);
+  }, [setPlugins, setLoading, openWindow]);
 
   // Global keybinds: / and Ctrl+K open the launcher
   const handleKeyDown = useCallback((e: KeyboardEvent) => {

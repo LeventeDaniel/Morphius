@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FloatingWindow } from './FloatingWindow.js';
 import { useWindowStore } from '../store/windows.js';
 import { api } from '../api/client.js';
@@ -33,23 +33,57 @@ const KNOWN_PROVIDER_KINDS = new Set([
 ]);
 
 export function ModuleMountWindow({ window: win }: ModuleMountWindowProps) {
-  const { closeWindow, minimizeWindow, collapseWindow, bringToFront, moveWindow } = useWindowStore();
+  const { closeWindow, collapseWindow, bringToFront, moveWindow } = useWindowStore();
   const manifest = win.data as PluginManifestDTO | ExternalModuleDTO | undefined;
   const [lastOutput, setLastOutput] = useState<Record<string, unknown> | null>(null);
   const [runStatus, setRunStatus] = useState<RunStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [backendLoaded, setBackendLoaded] = useState(false);
 
   // Detect if this is an external module (has compatibilityLevel)
   const isExternal = manifest && 'compatibilityLevel' in manifest;
   const extManifest = isExternal ? (manifest as ExternalModuleDTO) : undefined;
   const coreManifest = !isExternal ? (manifest as PluginManifestDTO | undefined) : undefined;
 
+  // Derive module id and whether it has a real backend
+  const moduleId = extManifest?.id ?? manifest?.id;
+  const hasBackend = !!(extManifest as unknown as Record<string, unknown> | undefined)?.backendEntry;
+
+  // Auto-load backend into Host when window opens
+  useEffect(() => {
+    if (!hasBackend || !moduleId || backendLoaded) return;
+    api.host.load(moduleId)
+      .then(() => setBackendLoaded(true))
+      .catch(() => {});
+  }, [hasBackend, moduleId, backendLoaded]);
+
   const runAction = async (actionId: string) => {
-    if (isExternal) {
-      setRunStatus('unavailable');
-      setErrorMsg('Execution not available — external module actions require an execution provider. No code is run automatically.');
+    // External module with a backendEntry — dispatch through Host runtime
+    if (isExternal && hasBackend && moduleId) {
+      setRunStatus('running');
+      setErrorMsg('');
+      try {
+        // Ensure backend is loaded before dispatching
+        if (!backendLoaded) {
+          await api.host.load(moduleId);
+          setBackendLoaded(true);
+        }
+        const result = await api.host.dispatch(moduleId, actionId, {});
+        setLastOutput(result.result as Record<string, unknown>);
+        setRunStatus('idle');
+      } catch (err) {
+        setErrorMsg(err instanceof Error ? err.message : String(err));
+        setRunStatus('error');
+      }
       return;
     }
+    // External module with no backendEntry — metadata only
+    if (isExternal) {
+      setRunStatus('unavailable');
+      setErrorMsg('Execution not available — this module has no backendEntry declared.');
+      return;
+    }
+    // Core module — use legacy mock run
     if (!coreManifest) return;
     setRunStatus('running');
     setErrorMsg('');
@@ -75,15 +109,38 @@ export function ModuleMountWindow({ window: win }: ModuleMountWindowProps) {
   const permissions = manifest?.permissions ?? [];
   const actions = manifest?.actions ?? [];
 
+  // If the module declares a devUrl, mount it via iframe.
+  // Morphius just points at the module's own running server — no file serving, no transformation.
+  const moduleDevUrl = extManifest?.devUrl;
+  const hasIframeUI = !!moduleDevUrl;
+
   return (
     <FloatingWindow
       window={win}
       onClose={() => closeWindow(win.id)}
-      onMinimize={() => minimizeWindow(win.id)}
       onCollapse={() => collapseWindow(win.id)}
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}
     >
+      {/* ── iframe mount: module owns its UI — Morphius just points at the module's own server ── */}
+      {hasIframeUI ? (
+        <iframe
+          src={moduleDevUrl}
+          style={{
+            flex: 1,
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            background: '#111',
+            display: 'block',
+          }}
+          title={name ?? 'module'}
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      ) : null}
+
+      {/* ── metadata view: shown when no entry / core module ── */}
+      {!hasIframeUI && (
       <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }}>
         {!manifest ? (
           <div style={mutedText}>NO MANIFEST DATA</div>
@@ -272,10 +329,12 @@ export function ModuleMountWindow({ window: win }: ModuleMountWindowProps) {
               </div>
             )}
 
-            {/* Execution unavailable notice (external modules) */}
+            {/* Execution status notice */}
             {isExternal && actions.length > 0 && (
-              <div style={{ fontSize: 13, color: '#333', fontFamily: 'var(--font-mono)', borderTop: '1px solid #1a1a1a', paddingTop: 4 }}>
-                External module execution requires a provider. Actions are displayed as metadata only.
+              <div style={{ fontSize: 13, color: hasBackend ? '#2a4a2a' : '#333', fontFamily: 'var(--font-mono)', borderTop: '1px solid #1a1a1a', paddingTop: 4 }}>
+                {hasBackend
+                  ? (backendLoaded ? '● BACKEND LOADED — actions execute via Host runtime' : '○ LOADING BACKEND…')
+                  : 'No backendEntry declared — actions are metadata only.'}
               </div>
             )}
 
@@ -323,6 +382,7 @@ export function ModuleMountWindow({ window: win }: ModuleMountWindowProps) {
           </span>
         </div>
       </div>
+      )}
     </FloatingWindow>
   );
 }

@@ -10,7 +10,7 @@ interface ProvidersListWindowProps {
 }
 
 export function ProvidersListWindow({ window: win }: ProvidersListWindowProps) {
-  const { closeWindow, minimizeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
+  const { closeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
   const [providers, setProviders] = useState<PluginManifestDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,7 +45,6 @@ export function ProvidersListWindow({ window: win }: ProvidersListWindowProps) {
     <FloatingWindow
       window={win}
       onClose={() => closeWindow(win.id)}
-      onMinimize={() => minimizeWindow(win.id)}
       onCollapse={() => collapseWindow(win.id)}
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}

@@ -1,5 +1,7 @@
+// Use relative paths so all requests go through the Vite dev proxy (/api → :7900).
+// Set VITE_API_URL only when deploying to a different origin.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL: string = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:7900';
+const API_URL: string = (import.meta as any).env?.VITE_API_URL ?? '';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
@@ -27,6 +29,8 @@ export interface MountedModuleDTO {
   name: string;
   version: string;
   type: string;
+  entry?: string;
+  devUrl?: string;
   description: string;
   permissions: string[];
   connectors: Array<{ name: string; description?: string }>;
@@ -39,9 +43,16 @@ export interface MountedModuleDTO {
   sourceLabel: string;
   manifestKind: 'module' | 'workflow';
   warnings: string[];
+  recommendations: string[];
+  compatibilityLevel: CompatibilityLevel;
   provider?: ProviderMetaDTO;
+  mockMode?: boolean;
+  workflowCompatible?: boolean;
   _folderPath?: string;
 }
+
+// Alias used by ModuleMountWindow — same shape
+export type ExternalModuleDTO = MountedModuleDTO;
 
 export interface PluginManifestDTO {
   id: string;
@@ -130,4 +141,19 @@ export const api = {
   },
 
   config: () => request<{ version: string; mockMode: boolean; features: Record<string, boolean> }>('/api/config'),
+
+  host: {
+    status: () =>
+      request<{ ok: boolean; hostMounted: boolean; modules: Array<{ moduleId: string; actions: string[] }> }>('/api/host/status'),
+    load: (moduleId: string) =>
+      request<{ ok: boolean; moduleId: string; actions: string[]; error?: string }>(
+        '/api/host/load',
+        { method: 'POST', body: JSON.stringify({ moduleId }) }
+      ),
+    dispatch: (moduleId: string, action: string, input: Record<string, unknown> = {}) =>
+      request<{ ok: boolean; result: unknown; durationMs: number; error?: string }>(
+        '/api/host/dispatch',
+        { method: 'POST', body: JSON.stringify({ moduleId, action, input }) }
+      ),
+  },
 };

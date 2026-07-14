@@ -11,6 +11,7 @@ import pluginsRoute from './routes/plugins.js';
 import workspaceRoute from './routes/workspace.js';
 import auditRoute from './routes/audit.js';
 import configRoute from './routes/config.js';
+import hostRoute from './routes/host.js';
 
 const app = new Hono();
 
@@ -34,6 +35,7 @@ app.route('/api/plugins', pluginsRoute);
 app.route('/api/workspace', workspaceRoute);
 app.route('/api/audit', auditRoute);
 app.route('/api/config', configRoute);
+app.route('/api/host', hostRoute);
 
 // 404 handler
 app.notFound((c) => c.json({ error: 'Not found' }, 404));

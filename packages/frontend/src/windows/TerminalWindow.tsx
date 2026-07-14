@@ -28,7 +28,7 @@ interface TerminalWindowProps {
 }
 
 export function TerminalWindow({ window: win }: TerminalWindowProps) {
-  const { closeWindow, minimizeWindow, collapseWindow, bringToFront, moveWindow } = useWindowStore();
+  const { closeWindow, collapseWindow, bringToFront, moveWindow } = useWindowStore();
   const { plugins } = usePluginStore();
   const [lines, setLines] = useState<Line[]>([
     { id: lineId++, kind: 'output', text: `MORPHIUS TERMINAL v${VERSION}` },
@@ -106,7 +106,6 @@ export function TerminalWindow({ window: win }: TerminalWindowProps) {
     <FloatingWindow
       window={win}
       onClose={() => closeWindow(win.id)}
-      onMinimize={() => minimizeWindow(win.id)}
       onCollapse={() => collapseWindow(win.id)}
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}

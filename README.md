@@ -66,7 +66,7 @@ Enter a folder path to any Forge-compatible module. Morphius reads its `manifest
 
 > **Floating windows**
 
-Every module lives in a draggable floating window. Minimise to title bar with `▼`. Restore with `▲`. Stack, rearrange, close — the canvas is yours.
+Every module lives in a draggable floating window. Drag by the title bar to move. Collapse to title bar with `▼` — the collapse button is separate from drag so moving a window never triggers collapse. Restore with `▲`. Stack, rearrange, close — the canvas is yours.
 
 ---
 
@@ -116,20 +116,24 @@ The module opens as a floating window. Build your own with [Morphius Forge](http
 WebtopShell
 ├── WebtopTopbar         top bar
 ├── WebtopCanvas         freeform canvas — all windows live here
-│   └── FloatingWindow   draggable container
+│   └── FloatingWindow   draggable container (title bar drag / collapse button separated)
 │       └── [content]    routed by contentKind
 └── WebtopStatusBar      minimised chips + window count
 
 CommandLauncher          overlay — press / or click +
 ```
 
+**Boot sequence:** on load, `WebtopShell` calls `loadSavedLayout()` which dispatches `loadLayout` on any registered auto-layout module via `/api/host/dispatch`. If a layout was saved, the saved windows reopen automatically. No core opinion on what gets restored — the module decides.
+
 **Three packages:**
 
 | Package | Purpose |
 |---|---|
 | `packages/core` | Shared TypeScript types — PluginManifest, EventBus, AuditLogger, PermissionGate |
-| `packages/backend` | Hono API server on port 7900 — plugin registry, audit log, generic module mount |
+| `packages/backend` | Hono API server on port 7900 — plugin registry, audit log, Host dispatch bridge |
 | `packages/frontend` | React 18 + Vite + Zustand — canvas, windows, command launcher |
+
+**Host dispatch bridge (`/api/host`):** Morphius ships a backend bridge that lets fullstack modules run a Node.js backend. A module declares a `backendEntry` TypeScript file exporting an `actions` map. The Host loads it at runtime and routes `POST /api/host/dispatch` calls to the right handler. The backend owns no opinions — it just executes what the module declares.
 
 ---
 
@@ -197,10 +201,15 @@ Base: `http://localhost:7900`
 ```
 GET  /health
 
-GET  /api/plugins               list plugin manifests
-GET  /api/plugins/:id           get plugin manifest
+GET  /api/plugins               list mounted module manifests
+GET  /api/plugins/:id           get a module manifest
 POST /api/plugins/mount         register a module from a folder path { path }
 POST /api/plugins/:id/run       run action { action, input }
+
+POST /api/host/load             load a module's backend into the Host runtime { moduleId }
+POST /api/host/dispatch         call a module action through Host { moduleId, action, input }
+GET  /api/host/status           list loaded modules and Host runtime state
+GET  /api/host/restore          return all saved surface states for canvas rehydration
 
 GET  /api/workspace/recipes     list recipes
 GET  /api/workspace/recipe/:id  get recipe

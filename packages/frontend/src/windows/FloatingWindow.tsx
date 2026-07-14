@@ -4,7 +4,6 @@ import type { WindowState } from '../store/windows.js';
 export interface FloatingWindowProps {
   window: WindowState;
   onClose: () => void;
-  onMinimize: () => void;
   onCollapse: () => void;
   onFocus: () => void;
   onMove: (x: number, y: number) => void;
@@ -14,24 +13,24 @@ export interface FloatingWindowProps {
 export function FloatingWindow({
   window: win,
   onClose,
-  onMinimize,
   onCollapse,
   onFocus,
   onMove,
   children,
 }: FloatingWindowProps) {
-  const dragState = useRef<{ startX: number; startY: number; winX: number; winY: number } | null>(null);
+  const dragState = useRef<{ startX: number; startY: number; winX: number; winY: number; moved: boolean } | null>(null);
 
   const handleTitleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if ((e.target as HTMLElement).closest('button')) return;
       e.preventDefault();
-      dragState.current = { startX: e.clientX, startY: e.clientY, winX: win.x, winY: win.y };
+      dragState.current = { startX: e.clientX, startY: e.clientY, winX: win.x, winY: win.y, moved: false };
 
       const onMouseMove = (mv: MouseEvent) => {
         if (!dragState.current) return;
         const dx = mv.clientX - dragState.current.startX;
         const dy = mv.clientY - dragState.current.startY;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragState.current.moved = true;
         onMove(dragState.current.winX + dx, dragState.current.winY + dy);
       };
 
@@ -97,10 +96,10 @@ export function FloatingWindow({
           {win.title}
         </span>
 
-        {/* Minimize / Restore toggle */}
+        {/* Collapse / Restore toggle — button only, title bar drag never triggers this */}
         <button
-          onClick={(e) => { e.stopPropagation(); isCollapsed ? onCollapse() : onMinimize(); }}
-          title={isCollapsed ? 'Restore' : 'Minimise'}
+          onClick={(e) => { e.stopPropagation(); onCollapse(); }}
+          title={isCollapsed ? 'Expand' : 'Collapse'}
           style={btnStyle}
         >
           {isCollapsed ? '▲' : '▼'}

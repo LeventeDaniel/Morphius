@@ -16,7 +16,7 @@ export function ModuleLoaderWindow({ window: win }: Props) {
   const [module, setModule] = useState<MountedModuleDTO | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { closeWindow, minimizeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
+  const { closeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 80);
@@ -80,7 +80,6 @@ export function ModuleLoaderWindow({ window: win }: Props) {
     <FloatingWindow
       window={win}
       onClose={() => closeWindow(win.id)}
-      onMinimize={() => minimizeWindow(win.id)}
       onCollapse={() => collapseWindow(win.id)}
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}

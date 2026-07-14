@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { Hono } from 'hono';
-import { globalRegistry } from '@morphius/core';
-import { auditLogger } from '@morphius/core';
+import { globalRegistry, auditLogger, checkCompatibility } from '@morphius/core';
 import { getDb } from '../db/client.js';
 
 const app = new Hono();
@@ -86,12 +85,25 @@ app.post('/mount', async (c) => {
 
   validation.module._folderPath = moduleRoot;
 
+  const compat = checkCompatibility(validation.module);
   globalRegistry.register(validation.module as any);
 
   return c.json({
     ok: true,
-    module: validation.module,
-    warnings: [],
+    module: {
+      ...validation.module,
+      compatibilityLevel: compat.level,
+      warnings: compat.warnings,
+      recommendations: compat.recommendations,
+      sourceLabel: moduleRoot,
+      manifestKind: 'module',
+      source: 'external',
+      tags: (validation.module.tags as string[] | undefined) ?? [],
+      permissions: (validation.module.permissions as string[] | undefined) ?? [],
+      connectors: (validation.module.connectors as unknown[] | undefined) ?? [],
+      secretRefs: (validation.module.secretRefs as unknown[] | undefined) ?? [],
+      actions: (validation.module.actions as unknown[] | undefined) ?? [],
+    },
   });
 });
 

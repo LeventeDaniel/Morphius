@@ -9,7 +9,7 @@ interface WorkflowMountWindowProps {
 }
 
 export function WorkflowMountWindow({ window: win }: WorkflowMountWindowProps) {
-  const { closeWindow, minimizeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
+  const { closeWindow, collapseWindow, bringToFront, moveWindow, openWindow } = useWindowStore();
   const { plugins } = usePluginStore();
   const recipe = win.data as RecipeDTO | undefined;
 
@@ -38,7 +38,6 @@ export function WorkflowMountWindow({ window: win }: WorkflowMountWindowProps) {
     <FloatingWindow
       window={win}
       onClose={() => closeWindow(win.id)}
-      onMinimize={() => minimizeWindow(win.id)}
       onCollapse={() => collapseWindow(win.id)}
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}
