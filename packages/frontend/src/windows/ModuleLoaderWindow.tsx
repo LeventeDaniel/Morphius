@@ -46,7 +46,7 @@ export function ModuleLoaderWindow({ window: win }: Props) {
 
   const openModule = (mod: MountedModuleDTO) => {
     openWindow({
-      id: `ext-${mod.id}`,
+      id: `ext-${mod.id}-${Date.now()}`,
       title: mod.name.toUpperCase(),
       type: 'module',
       source: 'external',

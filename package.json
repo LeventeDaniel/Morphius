@@ -18,7 +18,5 @@
     "concurrently": "^8.2.0",
     "typescript": "^5.4.0"
   },
-  "dependencies": {
-    "better-sqlite3": "^12.6.2"
-  }
+  "dependencies": {}
 }

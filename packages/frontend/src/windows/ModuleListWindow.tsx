@@ -23,7 +23,7 @@ export function ModuleListWindow({ window: win }: ModuleListWindowProps) {
 
   const openPlugin = (p: PluginManifestDTO) => {
     openWindow({
-      id: `module-${p.id}`,
+      id: `module-${p.id}-${Date.now()}`,
       title: p.name,
       type: 'module',
       source: 'module',

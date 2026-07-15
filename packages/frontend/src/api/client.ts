@@ -155,5 +155,21 @@ export const api = {
         '/api/host/dispatch',
         { method: 'POST', body: JSON.stringify({ moduleId, action, input }) }
       ),
+    bootstrap: () =>
+      request<{ ok: boolean; results: Array<{ moduleId: string; mounted: boolean; loaded: boolean; error?: string }>; siblingsDir: string }>(
+        '/api/host/bootstrap',
+        { method: 'POST' }
+      ),
+  },
+
+  runtime: {
+    status: () =>
+      request<{ ok: boolean; runtimeLoaded: boolean; bundleCount: number }>('/api/runtime/status'),
+    build: (moduleId: string, force = false) =>
+      request<{ ok: boolean; moduleId: string; sizeBytes: number; cached: boolean; error?: string }>(
+        '/api/runtime/build',
+        { method: 'POST', body: JSON.stringify({ moduleId, force }) }
+      ),
+    iframeUrl: (moduleId: string) => `/api/runtime/iframe/${moduleId}`,
   },
 };

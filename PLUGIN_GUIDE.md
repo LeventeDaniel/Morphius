@@ -4,6 +4,80 @@ This guide covers everything you need to build a plugin for Morphius.
 
 ---
 
+## Forge UI Rules
+
+These rules apply to every module UI (`module.tsx`). They are non-negotiable.
+
+### Never display a module ID to the user
+
+Module IDs (`morphius-host`, `morphius-module-runtime`, etc.) are internal identifiers — they must never appear in any UI surface. Always resolve to the human `name` from the manifest.
+
+**Authoritative name source: Host's `listModules` action.** Host reads `manifest.json` at load time and returns `name` alongside `moduleId`. This covers all loaded modules regardless of whether they appear in the plugin registry.
+
+**If your module receives `name` directly from the backend** (e.g. `listModules` already returns it), use it directly — no extra fetch needed.
+
+**If your module needs to resolve names for arbitrary IDs**, use this two-tier pattern:
+
+```ts
+// Tier 1: Host's listModules (reads manifest.json, covers all loaded modules)
+async function fetchHostNameMap(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch('/api/host/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ moduleId: 'morphius-host', action: 'listModules', input: {} }),
+    });
+    if (res.ok) {
+      const json = await res.json() as { result?: { modules?: Array<{ moduleId: string; name: string }> } };
+      return Object.fromEntries((json.result?.modules ?? []).map(m => [m.moduleId, m.name]));
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+async function resolveModuleNames(ids: string[]): Promise<Record<string, string>> {
+  const hostMap = await fetchHostNameMap();
+  // Fallback to plugin registry for IDs not in host map
+  const missing = ids.filter(id => !hostMap[id]);
+  const fallbacks = await Promise.all(
+    missing.map(async (id) => {
+      try {
+        const res = await fetch(`/api/plugins/${id}`);
+        if (res.ok) {
+          const m = await res.json() as { name?: string };
+          return [id, m.name ?? id] as const;
+        }
+      } catch { /* ignore */ }
+      return [id, id] as const;
+    })
+  );
+  return { ...Object.fromEntries(fallbacks), ...hostMap };
+}
+```
+
+Store the result in a `nameMap` state, then display `nameMap[moduleId] ?? moduleId` everywhere. The fallback ensures nothing breaks if the API is unreachable.
+
+### Colors
+
+- Single accent color: `#4ade80` (lime-green). No red, blue, or other accents.
+- Red (`#f87171`) is allowed **only** for error states (error dot, error text in `<pre>`).
+- All other colors from the palette: `#111` bg, `#181818` alt, `#2a2a2a` border, `#e0e0e0` text, `#aaa` dim, `#666` label.
+
+### Font
+
+- Always `var(--font-mono)`. Never hardcode `monospace`, `'JetBrains Mono'`, or any other font.
+
+### No rounded corners
+
+- Never use `borderRadius` on any element.
+
+### Buttons
+
+- `background: #1e1e1e`, `color: #ccc`, `border: 1px solid #2a2a2a`, `padding: 5px 14px`, `font-family: var(--font-mono)`, `font-size: 12px`, `text-transform: uppercase`, `letter-spacing: 0.1em`, `cursor: pointer`.
+- Destructive button variant: same but `color: #4ade80`, `border-color: #1a2a1a`.
+
+---
+
 ## 1. Plugin Manifest Contract
 
 Every plugin must have a `manifest.json` at its root. The full type is defined in `packages/core/src/plugin/manifest.ts`.

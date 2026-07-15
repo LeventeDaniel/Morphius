@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Clear Morphius Cache</title>
+  <style>
+    body { background: #111; color: #e0e0e0; font-family: monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .box { border: 1px solid #2a2a2a; padding: 24px 32px; max-width: 420px; }
+    h1 { font-size: 14px; letter-spacing: 0.15em; color: #4ade80; margin: 0 0 12px; }
+    p { font-size: 12px; color: #666; margin: 4px 0; }
+    button { margin-top: 16px; background: #1e1e1e; color: #ccc; border: 1px solid #2a2a2a; padding: 8px 20px; font-family: monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; }
+    button:hover { background: #2a2a2a; color: #fff; }
+    #status { margin-top: 12px; font-size: 12px; color: #4ade80; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>MORPHIUS CACHE CLEAR</h1>
+    <p>Clears all cached scripts for this origin so the latest UI loads.</p>
+    <p>After clearing, you'll be redirected to the main app.</p>
+    <button onclick="clearAndRedirect()">CLEAR &amp; RELOAD</button>
+    <div id="status"></div>
+  </div>
+  <script>
+    async function clearAndRedirect() {
+      const s = document.getElementById('status');
+      s.textContent = 'Clearing caches…';
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        s.textContent = 'Done — redirecting…';
+        setTimeout(() => { window.location.href = '/'; }, 800);
+      } catch(e) {
+        s.textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>

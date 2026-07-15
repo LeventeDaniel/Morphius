@@ -10,6 +10,7 @@ interface ModuleMountWindowProps {
 }
 
 type RunStatus = 'idle' | 'running' | 'error' | 'unavailable';
+type PipelineStatus = 'idle' | 'bootstrapping' | 'mounting' | 'building' | 'ready' | 'error';
 
 // ─── Compatibility level display ──────────────────────────────────────────────
 
@@ -39,23 +40,90 @@ export function ModuleMountWindow({ window: win }: ModuleMountWindowProps) {
   const [runStatus, setRunStatus] = useState<RunStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [backendLoaded, setBackendLoaded] = useState(false);
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('idle');
+  const [pipelineMsg, setPipelineMsg] = useState('');
 
   // Detect if this is an external module (has compatibilityLevel)
   const isExternal = manifest && 'compatibilityLevel' in manifest;
   const extManifest = isExternal ? (manifest as ExternalModuleDTO) : undefined;
   const coreManifest = !isExternal ? (manifest as PluginManifestDTO | undefined) : undefined;
 
-  // Derive module id and whether it has a real backend
+  // Derive module id and whether it has a real backend / entry
   const moduleId = extManifest?.id ?? manifest?.id;
   const hasBackend = !!(extManifest as unknown as Record<string, unknown> | undefined)?.backendEntry;
+  const hasEntry = !!(extManifest as unknown as Record<string, unknown> | undefined)?.entry;
 
-  // Auto-load backend into Host when window opens
+  // Auto-pipeline: bootstrap Host + ModuleRuntime, mount this module, build bundle, show iframe.
+  // Runs whenever a module window opens. All steps are idempotent.
   useEffect(() => {
-    if (!hasBackend || !moduleId || backendLoaded) return;
-    api.host.load(moduleId)
-      .then(() => setBackendLoaded(true))
-      .catch(() => {});
-  }, [hasBackend, moduleId, backendLoaded]);
+    if (!moduleId) return;
+    let cancelled = false;
+
+    async function runPipeline() {
+      setPipelineStatus('bootstrapping');
+      setPipelineMsg('Starting Host + ModuleRuntime…');
+
+      // Step 1: bootstrap Host and ModuleRuntime (idempotent)
+      try {
+        await api.host.bootstrap();
+      } catch { /* bootstrap errors are non-fatal — Host may already be running */ }
+
+      if (cancelled) return;
+
+      // Step 2: mount this module into registry (idempotent)
+      const folderPath = (extManifest as unknown as Record<string, unknown>)?._folderPath as string | undefined;
+      if (folderPath) {
+        setPipelineStatus('mounting');
+        setPipelineMsg('Mounting module…');
+        try { await api.plugins.mount(folderPath); } catch { /* already mounted */ }
+      }
+
+      if (cancelled) return;
+
+      // Step 3: load this module's backend into Host (idempotent)
+      if (hasBackend) {
+        try {
+          await api.host.load(moduleId!);
+          if (!cancelled) setBackendLoaded(true);
+        } catch { /* non-fatal — may already be loaded */ }
+      }
+
+      if (cancelled) return;
+
+      // Step 4: if module has a UI entry, build and show iframe
+      if (hasEntry) {
+        setPipelineStatus('building');
+        setPipelineMsg('Building UI bundle…');
+        try {
+          const buildResult = await api.runtime.build(moduleId!, true);
+          if (!cancelled && buildResult.ok) {
+            setIframeUrl(`${api.runtime.iframeUrl(moduleId!)}?t=${Date.now()}`);
+            setPipelineStatus('ready');
+            setPipelineMsg('');
+          } else if (!cancelled) {
+            setPipelineStatus('error');
+            setPipelineMsg(buildResult.error ?? 'Build failed');
+          }
+        } catch (e) {
+          if (!cancelled) {
+            setPipelineStatus('error');
+            setPipelineMsg(e instanceof Error ? e.message : 'Build error');
+          }
+        }
+      } else {
+        // Backend-only or metadata-only module — no iframe needed
+        if (!cancelled) {
+          setPipelineStatus('ready');
+          setPipelineMsg('');
+        }
+      }
+    }
+
+    runPipeline();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleId]);
 
   const runAction = async (actionId: string) => {
     // External module with a backendEntry — dispatch through Host runtime
@@ -122,25 +190,55 @@ export function ModuleMountWindow({ window: win }: ModuleMountWindowProps) {
       onFocus={() => bringToFront(win.id)}
       onMove={(x, y) => moveWindow(win.id, x, y)}
     >
-      {/* ── iframe mount: module owns its UI — Morphius just points at the module's own server ── */}
-      {hasIframeUI ? (
+      {/* ── pipeline loading state ── */}
+      {hasEntry && pipelineStatus !== 'ready' && pipelineStatus !== 'error' && !iframeUrl && (
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 10, background: '#111', color: '#555', fontFamily: 'var(--font-mono)', fontSize: 13,
+        }}>
+          <span style={{ letterSpacing: '0.12em' }}>
+            {pipelineStatus === 'bootstrapping' ? '○ STARTING RUNTIME…'
+              : pipelineStatus === 'mounting' ? '○ MOUNTING MODULE…'
+              : pipelineStatus === 'building' ? '○ BUILDING UI…'
+              : '○ INITIALISING…'}
+          </span>
+          {pipelineMsg && <span style={{ color: '#333', fontSize: 12 }}>{pipelineMsg}</span>}
+        </div>
+      )}
+
+      {/* ── pipeline error (no iframe fallback) ── */}
+      {hasEntry && pipelineStatus === 'error' && !iframeUrl && (
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 8, background: '#111', color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: 13, padding: 16,
+        }}>
+          <span>UI BUILD FAILED</span>
+          {pipelineMsg && <span style={{ color: '#666', fontSize: 12, textAlign: 'center' }}>{pipelineMsg}</span>}
+        </div>
+      )}
+
+      {/* ── runtime iframe: module UI bundled and served by ModuleRuntime ── */}
+      {iframeUrl ? (
         <iframe
-          src={moduleDevUrl}
-          style={{
-            flex: 1,
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            background: '#111',
-            display: 'block',
-          }}
+          src={iframeUrl}
+          style={{ flex: 1, width: '100%', height: '100%', border: 'none', background: '#111', display: 'block' }}
           title={name ?? 'module'}
           sandbox="allow-scripts allow-same-origin allow-forms"
         />
       ) : null}
 
-      {/* ── metadata view: shown when no entry / core module ── */}
-      {!hasIframeUI && (
+      {/* ── devUrl iframe: module owns its UI and runs its own dev server ── */}
+      {!iframeUrl && hasIframeUI && pipelineStatus === 'ready' ? (
+        <iframe
+          src={moduleDevUrl}
+          style={{ flex: 1, width: '100%', height: '100%', border: 'none', background: '#111', display: 'block' }}
+          title={name ?? 'module'}
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      ) : null}
+
+      {/* ── metadata view: shown for backend-only / metadata-only modules ── */}
+      {!iframeUrl && !hasIframeUI && !hasEntry && (
       <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }}>
         {!manifest ? (
           <div style={mutedText}>NO MANIFEST DATA</div>

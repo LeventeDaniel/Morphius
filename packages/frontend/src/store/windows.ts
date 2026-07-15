@@ -2,22 +2,47 @@ import { create } from 'zustand';
 
 // Neutral pipe — calls the AutoLayout module backend via the Host API.
 // Core dispatches; it does not decide what to save or where. AutoLayout owns that.
+// Silently skips if morphius-auto-layout is not loaded — no console errors.
+let _autoLayoutAvailable: boolean | null = null;
+let _autoLayoutLastCheck = 0;
+async function isAutoLayoutLoaded(): Promise<boolean> {
+  // Re-check at most once every 10s so we detect late loads without hammering the API
+  const now = Date.now();
+  if (_autoLayoutAvailable === true && now - _autoLayoutLastCheck < 10_000) return true;
+  try {
+    const res = await fetch('/api/host/status');
+    if (!res.ok) { _autoLayoutAvailable = false; return false; }
+    const json = await res.json() as { ok: boolean; modules?: Array<{ moduleId: string }> };
+    _autoLayoutAvailable = (json.modules ?? []).some(m => m.moduleId === 'morphius-auto-layout');
+    _autoLayoutLastCheck = now;
+    return _autoLayoutAvailable;
+  } catch { return false; }
+}
+
 async function dispatchAutoLayout(action: string, input: Record<string, unknown> = {}): Promise<unknown> {
   try {
+    if (!(await isAutoLayoutLoaded())) return null;
     const res = await fetch('/api/host/dispatch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ moduleId: 'morphius-auto-layout', action, input }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) { _autoLayoutAvailable = null; return null; }
     const json = await res.json() as { ok: boolean; result?: unknown };
     return json.result ?? null;
   } catch { return null; }
 }
 
 function persistLayout(windows: WindowState[]): void {
+  // Normalize plugin-manifest windows to module-iframe before saving so they
+  // restore via the fast direct iframe path instead of re-running the pipeline.
+  const normalized = windows.map((w) =>
+    w.contentKind === 'plugin-manifest' && w.moduleId
+      ? { ...w, contentKind: 'module-iframe', source: 'module' as const }
+      : w
+  );
   // Fire-and-forget — don't block UI interactions
-  dispatchAutoLayout('saveLayout', { windows });
+  dispatchAutoLayout('saveLayout', { windows: normalized });
 }
 
 export async function loadSavedLayout(): Promise<WindowState[]> {
@@ -41,7 +66,7 @@ export interface WindowState {
   data?: unknown;
 }
 
-type OpenWindowInput = Omit<WindowState, 'zIndex' | 'state' | 'x' | 'y'> & { x?: number; y?: number };
+type OpenWindowInput = Omit<WindowState, 'zIndex' | 'state' | 'x' | 'y'> & { x?: number; y?: number; state?: WindowState['state'] };
 
 function centeredPosition(width: number, height: number): { x: number; y: number } {
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
@@ -81,7 +106,7 @@ export const useWindowStore = create<WindowsStore>((set, get) => ({
     const pos = (partial.x === undefined || partial.y === undefined)
       ? centeredPosition(partial.width, partial.height)
       : { x: partial.x, y: partial.y };
-    const win: WindowState = { ...partial, ...pos, zIndex: newZ, state: 'open' };
+    const win: WindowState = { ...partial, ...pos, zIndex: newZ, state: partial.state ?? 'open' };
     const next = [...windows, win];
     set({ windows: next, maxZ: newZ });
     persistLayout(next);
@@ -108,29 +133,34 @@ export const useWindowStore = create<WindowsStore>((set, get) => ({
   },
 
   minimizeWindow: (id) => {
-    set((state) => ({
-      windows: state.windows.map((w) =>
-        w.id === id ? { ...w, state: 'minimized' } : w
-      ),
-    }));
+    set((state) => {
+      const windows = state.windows.map((w) =>
+        w.id === id ? { ...w, state: 'minimized' as const } : w
+      );
+      persistLayout(windows);
+      return { windows };
+    });
   },
 
   collapseWindow: (id) => {
-    set((state) => ({
-      windows: state.windows.map((w) =>
-        w.id === id ? { ...w, state: w.state === 'collapsed' ? 'open' : 'collapsed' } : w
-      ),
-    }));
+    set((state) => {
+      const windows = state.windows.map((w) =>
+        w.id === id ? { ...w, state: w.state === 'collapsed' ? ('open' as const) : ('collapsed' as const) } : w
+      );
+      persistLayout(windows);
+      return { windows };
+    });
   },
 
   restoreWindow: (id) => {
     const newZ = get().maxZ + 1;
-    set((state) => ({
-      windows: state.windows.map((w) =>
-        w.id === id ? { ...w, state: 'open', zIndex: newZ } : w
-      ),
-      maxZ: newZ,
-    }));
+    set((state) => {
+      const windows = state.windows.map((w) =>
+        w.id === id ? { ...w, state: 'open' as const, zIndex: newZ } : w
+      );
+      persistLayout(windows);
+      return { windows, maxZ: newZ };
+    });
   },
 
   closeWindow: (id) => {
@@ -143,12 +173,13 @@ export const useWindowStore = create<WindowsStore>((set, get) => ({
 
   bringToFront: (id) => {
     const newZ = get().maxZ + 1;
-    set((state) => ({
-      windows: state.windows.map((w) =>
-        w.id === id ? { ...w, zIndex: newZ, state: w.state === 'minimized' ? 'open' : w.state } : w
-      ),
-      maxZ: newZ,
-    }));
+    set((state) => {
+      const windows = state.windows.map((w) =>
+        w.id === id ? { ...w, zIndex: newZ, state: w.state === 'minimized' ? ('open' as const) : w.state } : w
+      );
+      persistLayout(windows);
+      return { windows, maxZ: newZ };
+    });
   },
 
   resetCanvas: () => {

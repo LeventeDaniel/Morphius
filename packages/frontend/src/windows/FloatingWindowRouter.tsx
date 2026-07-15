@@ -1,5 +1,6 @@
 import type { WindowState } from '../store/windows.js';
 import { ModuleMountWindow } from './ModuleMountWindow.js';
+import { ModuleIframeWindow } from './ModuleIframeWindow.js';
 import { WorkflowMountWindow } from './WorkflowMountWindow.js';
 import { TerminalWindow } from './TerminalWindow.js';
 import { ModuleListWindow } from './ModuleListWindow.js';
@@ -16,6 +17,8 @@ export function FloatingWindowRouter({ window: win }: Props) {
   switch (win.contentKind) {
     case 'plugin-manifest':
       return <ModuleMountWindow window={win} />;
+    case 'module-iframe':
+      return <ModuleIframeWindow window={win} />;
     case 'recipe':
       return <WorkflowMountWindow window={win} />;
     case 'terminal':

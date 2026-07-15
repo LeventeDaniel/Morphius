@@ -1,6 +1,7 @@
 import { useWindowStore } from '../store/windows.js';
 import { FloatingWindowRouter } from '../windows/FloatingWindowRouter.js';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { api } from '../api/client.js';
 
 interface WebtopCanvasProps {
   onOpenLauncher?: () => void;
@@ -37,6 +38,68 @@ export function WebtopCanvas({ onOpenLauncher }: WebtopCanvasProps) {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, [btnPos]);
+
+  // Keep a stable ref to openWindow so the message listener never needs to re-register
+  const openWindowRef = useRef(openWindow);
+  useEffect(() => { openWindowRef.current = openWindow; }, [openWindow]);
+
+  // Relay postMessages from module iframes: callAction dispatch + openModule window
+  useEffect(() => {
+    async function onMessage(event: MessageEvent) {
+      const data = event.data as Record<string, unknown> | undefined;
+      if (!data) return;
+
+      // ── Open module window request ──
+      if (data.__morphiusOpenModule) {
+        const moduleId = data.moduleId as string | undefined;
+        if (!moduleId) return;
+        // Resolve human name from manifest, fall back to moduleId
+        let title = moduleId;
+        try {
+          const res = await fetch(`/api/plugins/${moduleId}`);
+          if (res.ok) {
+            const manifest = await res.json() as { name?: string };
+            if (manifest.name) title = manifest.name;
+          }
+        } catch { /* use moduleId */ }
+        // Use stable id so openWindow deduplicates — brings existing window to front
+        openWindowRef.current({
+          id: `module-${moduleId}`,
+          title,
+          type: 'module',
+          source: 'module',
+          moduleId,
+          contentKind: 'module-iframe',
+          data: { moduleId },
+          width: 480,
+          height: 460,
+        });
+        return;
+      }
+
+      // ── callAction relay ──
+      if (!data.__morphiusCallAction) return;
+      const { moduleId, action, input, requestId } = data as {
+        moduleId: string; action: string; input: Record<string, unknown>; requestId: string;
+      };
+
+      try {
+        const result = await api.host.dispatch(moduleId, action, input ?? {});
+        (event.source as WindowProxy)?.postMessage(
+          { __morphiusResponse: true, requestId, result: result.result },
+          '*'
+        );
+      } catch (err) {
+        (event.source as WindowProxy)?.postMessage(
+          { __morphiusResponse: true, requestId, error: (err as Error).message },
+          '*'
+        );
+      }
+    }
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
   const onBtnClick = useCallback(() => {
     if (didDrag.current) return; // was a drag, not a click

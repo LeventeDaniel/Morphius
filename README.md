@@ -18,8 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/LeventeDaniel/Morphius">Morphius</a> ·
-  <a href="https://github.com/LeventeDaniel/Morphius_Forge">Morphius Forge</a> ·
-  <a href="https://github.com/LeventeDaniel/Morphius_Connect">Morphius Connect</a>
+  <a href="https://github.com/LeventeDaniel/Morphius_Forge">Morphius Forge</a>
 </p>
 
 ---
@@ -38,22 +37,6 @@ That's it.
 
 ---
 
-## Screenshots
-
-<p align="center">
-  <img src="packages/frontend/public/screenshots/screenshot-1.png" width="48%" />
-  <img src="packages/frontend/public/screenshots/screenshot-2.png" width="48%" />
-</p>
-<p align="center">
-  <img src="packages/frontend/public/screenshots/screenshot-3.png" width="48%" />
-  <img src="packages/frontend/public/screenshots/screenshot-4.png" width="48%" />
-</p>
-<p align="center">
-  <img src="packages/frontend/public/screenshots/screenshot-5.png" width="48%" />
-</p>
-
----
-
 ## How it looks
 
 > **Canvas — empty by default**
@@ -62,7 +45,7 @@ The shell opens blank. The Morphius wordmark and logo sit in the center. A dragg
 
 > **Loading a module**
 
-Enter a folder path to any Forge-compatible module. Morphius reads its `manifest.json`, opens a floating window at the declared size, and gets out of the way. No installation. No file copying. No code executed during load.
+Click the `+` button or press `/` to open the Load Module window. Enter a folder path to any Forge-compatible module. Morphius reads its `manifest.json`, mounts the module's backend into the Host runtime, opens a floating window at the declared size, and gets out of the way. No installation. No file copying.
 
 > **Floating windows**
 
@@ -92,21 +75,24 @@ Open http://localhost:5173 — you should see a black canvas with the Morphius l
 
 ## Loading your first module
 
-1. Press `/` to open the command launcher
-2. Type `load module` and press Enter
-3. Enter the full path to any Forge-compatible module folder
-4. Press Enter
+1. Click the `+` button (bottom-right of canvas) to open the Load Module window
+2. Enter the full path to any Forge-compatible module folder
+3. Press **LOAD** — the module mounts and its window opens immediately
 
-The module opens as a floating window. Build your own with [Morphius Forge](https://github.com/LeventeDaniel/Morphius_Forge).
+The module name, size, and position come from the module's own `manifest.json`. Morphius gets out of the way.
 
-**Built-in commands:**
+**Canvas controls:**
 
-| Command | Action |
+| Action | How |
 |---|---|
-| `load module` | Load a module from a folder path |
-| `open terminal` | Open a terminal window |
-| `reset canvas` | Close all windows |
-| `help` | Show command list |
+| Load a module | `+` button → enter folder path |
+| Move a window | Drag the title bar |
+| Collapse a window | `▼` button on title bar |
+| Minimize to taskbar | `−` button on title bar |
+| Close a window | `×` button on title bar |
+| Reset canvas | Close all windows individually, or use Auto Layout's CLEAR CANVAS |
+
+**Auto Layout** saves your canvas automatically. On refresh or server restart, all windows reopen exactly where you left them — same position, same size, same collapsed/minimized state.
 
 ---
 
@@ -114,16 +100,20 @@ The module opens as a floating window. Build your own with [Morphius Forge](http
 
 ```
 WebtopShell
-├── WebtopTopbar         top bar
-├── WebtopCanvas         freeform canvas — all windows live here
-│   └── FloatingWindow   draggable container (title bar drag / collapse button separated)
-│       └── [content]    routed by contentKind
-└── WebtopStatusBar      minimised chips + window count
-
-CommandLauncher          overlay — press / or click +
+├── WebtopTopbar              top bar
+├── WebtopCanvas              freeform canvas — all windows live here
+│   └── FloatingWindow        draggable container (title bar drag / collapse / minimize)
+│       └── [content]         routed by contentKind:
+│           ├── module-iframe   compiled module UI in sandboxed iframe
+│           ├── plugin-manifest module loaded via pipeline
+│           ├── terminal        built-in terminal
+│           └── core            built-in core windows (Load Module, etc.)
+└── WebtopStatusBar           minimized window chips + window count
 ```
 
-**Boot sequence:** on load, `WebtopShell` calls `loadSavedLayout()` which dispatches `loadLayout` on any registered auto-layout module via `/api/host/dispatch`. If a layout was saved, the saved windows reopen automatically. No core opinion on what gets restored — the module decides.
+**Boot sequence:** `WebtopShell` calls `loadSavedLayout()` on startup, which dispatches `loadLayout` to the Auto Layout module via `/api/host/dispatch`. All saved windows reopen at their saved position, size, and state (open / collapsed / minimized). Core owns no layout opinion — Auto Layout decides what restores.
+
+**Module iframe pipeline:** when a fullstack module is opened, `ModuleRuntime` compiles its `entry` TSX into an IIFE bundle via esbuild, injects a `window.morphius` bridge (callAction, moduleId, name, description), and serves it in a sandboxed iframe. The bundle is cached — subsequent opens are instant.
 
 **Three packages:**
 
@@ -171,8 +161,6 @@ Modules are self-contained folders with a `manifest.json`. Morphius reads the ma
 
 ## Companion systems
 
-Morphius is designed to work with two optional companion repos. Neither is required to run.
-
 ### Morphius Forge
 
 Module creation kit. Provides:
@@ -185,12 +173,6 @@ Module creation kit. Provides:
 Forge is fully standalone. It has no dependency on Morphius internals — it runs its own lightweight HTTP server (`morphius-forge serve`) that the Forge Status module connects to. Morphius has no knowledge of Forge.
 
 → [github.com/LeventeDaniel/Morphius_Forge](https://github.com/LeventeDaniel/Morphius_Forge)
-
-### Morphius Connect
-
-Connection and secrets manager. All server-side only — no secret values ever reach the frontend.
-
-→ [github.com/LeventeDaniel/Morphius_Connect](https://github.com/LeventeDaniel/Morphius_Connect)
 
 ---
 
